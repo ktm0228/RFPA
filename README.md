@@ -1,261 +1,60 @@
 # GF180MCU-D RF Power Amplifier Skill
 
-This folder is a shareable RF power amplifier design bundle for GF180MCU-D. It
-is intended for the workflow where the repository is visible on the host, but
-the notebook kernel is connected to the IIC-OSIC-TOOLS Docker container.
+This is a shareable LLM/AI-agent skill bundle for GF180MCU-D RF power amplifier
+design. It combines RFPA design guidance with a CircuitCollector/ngspice
+simulation backend.
 
-## Expected Workflow
+The intended workflow is simple: open the setup notebook locally, connect it to
+the IIC-OSIC-TOOLS container's Jupyter kernel, run the notebook, then ask your
+agent to design and review the RFPA using the running API.
+
+## Quick Start
 
 1. Start the IIC-OSIC-TOOLS Docker/Jupyter environment.
-2. Copy or place this folder directly under the mounted designs directory on the host, for example:
+
+2. Place this folder under the host designs directory:
 
 ```text
 /Users/<user_name>/eda/designs/share_RFPA
 ```
 
-The IIC-OSIC-TOOLS container should then see the same folder through its mounted designs path, commonly:
+The container should see it at:
 
 ```text
 /foss/designs/share_RFPA
 ```
 
-3. Open the setup notebook from that local folder.
-4. Connect the notebook to the Jupyter kernel served by the Docker container.
-5. Run the setup notebook. The code executes inside the container even though
-   the files are visible locally.
-6. The notebook starts and verifies the CircuitCollector API in the container.
-7. Tell the agent to use this RFPA skill and to run simulations through the
-   container environment/API.
-
-The important point: place `share_RFPA` in the host designs directory that is
-already mounted into the container. There is no separate container copy step.
-
-## Environment
-
-This bundle was tested with the IEEE SSCS Chipathon IIC-OSIC-TOOLS
-Docker/Jupyter environment:
-
-```text
-https://github.com/sscs-ose/sscs-chipathon-2026/tree/main/resources/IIC-OSIC-TOOLS
-```
-
-That environment mounts the host designs directory into the container, which is
-why placing this folder at `/Users/<user_name>/eda/designs/share_RFPA` makes it
-available at `/foss/designs/share_RFPA` from the connected notebook kernel.
-
-## Contents
-
-- `AnalogAgent/skills/rf-power-amplifier/`: RFPA design workflow, topology
-  guidance, GF180 process notes, backend adapter, and smoke-test scripts.
-- `AnalogAgent/rf-pa-spec-form-template.md`: full RFPA spec template.
-- `AnalogAgent/rf-pa-onchip-core-spec-form-template.md`: on-chip-core-focused
-  spec template.
-- `CircuitCollector/`: FastAPI simulation service and CircuitCollector Python
-  package.
-- `CircuitCollector/CircuitCollector/config/gf180mcuD/rfpa/`: RFPA TOML configs.
-- `CircuitCollector/CircuitCollector/circuits/rfpa/`: RFPA netlist templates.
-- `CircuitCollector/CircuitCollector/spec_lib/rfpa/`: RFPA testbench templates.
-- `notebooks/setup_and_run_rfpa_gf180mcuD.ipynb`: RFPA-focused setup notebook.
-
-The GF180 PDK is not included. It must be available inside the container and
-linked at:
-
-```text
-/foss/designs/share_RFPA/CircuitCollector/CircuitCollector/PDK/gf180mcuD
-```
-
-## Path Mapping
-
-There are two paths to keep straight:
-
-```text
-Host path:
-/Users/<user_name>/eda/designs/share_RFPA
-
-Container path:
-/foss/designs/share_RFPA
-```
-
-Use the container path in commands that run from the notebook kernel, API, or
-agent simulation tools. The host path is just where you browse and edit files.
-
-In a notebook cell, confirm the container path with:
-
-```python
-from pathlib import Path
-print(Path.cwd())
-```
-
-If the notebook is opened from `share_RFPA/notebooks`, the share root is usually:
-
-```python
-SHARE_ROOT = Path.cwd().parent
-```
-
-If the notebook starts from the repository root, use:
-
-```python
-SHARE_ROOT = Path.cwd() / "share_RFPA"
-```
-
-## Run the RFPA Setup Notebook
-
-Open this notebook from the local file browser and connect it to the container
-Jupyter kernel:
+3. Open this notebook from your local file browser:
 
 ```text
 share_RFPA/notebooks/setup_and_run_rfpa_gf180mcuD.ipynb
 ```
 
-Before running all cells, update these values in the first setup cell if needed:
+4. Connect the notebook to the container's Jupyter kernel.
 
-```python
-SHARE_ROOT = Path.cwd().parent
-PDK_SRC = None  # or Path("/container/path/to/gf180mcuD")
-API_URL = "http://localhost:8001"
-```
+5. Run the notebook cells in order. The notebook links the GF180 PDK, installs
+CircuitCollector in the container Python environment, starts the API, checks
+`/health`, and runs an RFPA smoke test.
 
-The first setup cell prints `kernel cwd`, `share root`, and `CircuitCollector
-repo`. Check these before running the install cell. The CircuitCollector repo
-should end with:
+6. After the notebook reports a healthy API, open your coding agent from the
+`share_RFPA` folder and give it the prompt below.
 
-```text
-share_RFPA/CircuitCollector
-```
+## Agent Prompt
 
-If it prints a path such as `/foss/designs/CircuitCollector`, the notebook
-kernel started outside the repository and did not find `share_RFPA`. Set
-`SHARE_ROOT` manually in the first setup cell to the container-visible path of
-this folder, for example:
-
-```python
-SHARE_ROOT = Path("/foss/designs/share_RFPA")
-```
-
-The PDK cell auto-detects common IIC-OSIC-TOOLS locations such as
-`/foss/pdks/ciel/gf180mcu/versions/*/gf180mcuD`. If auto-detection fails, set
-`PDK_SRC` manually to the GF180MCU-D PDK path as seen inside the container. A
-valid PDK link should make these files exist:
+Use this as a compact starting prompt:
 
 ```text
-CircuitCollector/CircuitCollector/PDK/gf180mcuD/libs.tech/ngspice/design.ngspice
-CircuitCollector/CircuitCollector/PDK/gf180mcuD/libs.tech/ngspice/sm141064.ngspice
-```
+I want to design and review a GF180MCU-D RF power amplifier.
 
-The notebook installs CircuitCollector in the container Python environment,
-starts the FastAPI server, checks `/health`, and can run a quick RFPA smoke
-test.
+Container: <container_id_or_name>
+CircuitCollector API: http://localhost:8001/simulate/
 
-If the health check fails, inspect the printed `circuitcollector_api.log` tail.
-The notebook starts the API with the active kernel Python executable, so rerun
-the first setup cell and the install cell after changing kernels or restarting
-Jupyter. Before starting a new server, the notebook stops old uvicorn processes
-whose command line contains `CircuitCollector.api.main:app`, then starts a fresh
-API on `127.0.0.1:8001`.
+Run all simulations in the container environment. Do not run ngspice or
+CircuitCollector from the host Python environment.
 
-## Manual API Commands
-
-Use these only if you want to do the notebook steps manually inside a container
-terminal or notebook cell.
-
-```bash
-export SHARE_ROOT=<container path to share_RFPA>
-export GF180_PDK=/path/to/gf180mcuD
-
-cd "$SHARE_ROOT/CircuitCollector/CircuitCollector"
-mkdir -p PDK
-ln -sfn "$GF180_PDK" PDK/gf180mcuD
-test -f PDK/gf180mcuD/libs.tech/ngspice/sm141064.ngspice
-```
-
-Install and start the API:
-
-```bash
-cd "$SHARE_ROOT/CircuitCollector"
-python3 -m pip install -e . uvicorn httpx
-
-export PATH=/foss/tools/ngspice/bin:/foss/tools/bin:$PATH
-export LD_LIBRARY_PATH=/foss/tools/ngspice/lib:${LD_LIBRARY_PATH:-}
-python3 -m uvicorn CircuitCollector.api.main:app --host 0.0.0.0 --port 8001
-```
-
-To manually stop old CircuitCollector API servers in the container:
-
-```bash
-pgrep -af 'CircuitCollector.api.main:app'
-pkill -f 'uvicorn.*CircuitCollector.api.main:app'
-```
-
-Verify from the same container kernel or terminal:
-
-```bash
-curl http://localhost:8001/health
-```
-
-Expected response:
-
-```json
-{"status":"ok"}
-```
-
-## Check RFPA Backend Coverage
-
-Run this inside the container environment:
-
-```bash
-cd "$SHARE_ROOT/AnalogAgent"
-python3 skills/rf-power-amplifier/scripts/check_backend_coverage.py \
-  --backend-root "$SHARE_ROOT/CircuitCollector/CircuitCollector"
-```
-
-This verifies that each RFPA topology has its expected TOML config and netlist
-template.
-
-## Run a Quick RFPA Smoke Test
-
-With the API already running in the container:
-
-```bash
-cd "$SHARE_ROOT/AnalogAgent"
-python3 skills/rf-power-amplifier/scripts/smoke_test_backend.py \
-  --backend-root "$SHARE_ROOT/CircuitCollector/CircuitCollector" \
-  --api-url http://localhost:8001/simulate/ \
-  --quick \
-  --topology two_stage_single_ended
-```
-
-To smoke test all RFPA topology configs, omit `--topology two_stage_single_ended`.
-
-## Prompt the Agent
-
-After the setup notebook confirms the API is healthy, tell the agent something
-like this. Replace the placeholders with your active container and API details.
-If your agent is already running inside the container-backed notebook
-environment, the container ID can be left as a note rather than used directly.
-
-```text
-I want to design and review a GF180MCU-D RF power amplifier using this shared
-RFPA bundle.
-
-Container:
-<container_id_or_name>
-
-Container-visible share root:
-/foss/designs/share_RFPA
-
-CircuitCollector API:
-http://localhost:8001/simulate/
-
-Use the RFPA skill/docs and the local CircuitCollector GF180MCU-D backend from
-this share root. Run all simulations in the container environment; do not run
-ngspice or CircuitCollector from the host Python environment.
-
-Nominal starting spec:
-- Process: GF180MCU-D
-- Device family: nfet_03v3 / pfet_03v3 as needed
+Use this nominal starting spec:
 - Design scope: on-chip core only
-- Reference plane: schematic output node
-- Passive scope: finite-Q schematic passives only; no EM/layout signoff
+- Process: GF180MCU-D
 - VDD: 3.3 V
 - f0: 250 MHz
 - Load: 50 ohm
@@ -266,10 +65,144 @@ Nominal starting spec:
 - Max output RMS current: 10 mA
 - Max output peak current: 10 mA
 - Max device voltage: 3.3 V
+- Passive scope: finite-Q schematic passives only; no EM/layout signoff
+```
 
-Please check backend coverage, run a quick smoke test, select a runnable local
-topology, iterate sizing through the API if needed, and return an RF PA design
-review with active pass/fail specs and residual risks.
+If the agent is already running inside the container-backed notebook
+environment, the container ID is just a note; the API URL and container-visible
+path are the important handles.
+
+## Environment
+
+This bundle was tested with the IEEE SSCS Chipathon IIC-OSIC-TOOLS
+Docker/Jupyter environment:
+
+```text
+https://github.com/sscs-ose/sscs-chipathon-2026/tree/main/resources/IIC-OSIC-TOOLS
+```
+
+That environment mounts the host designs directory into the container. This is
+why `/Users/<user_name>/eda/designs/share_RFPA` appears as
+`/foss/designs/share_RFPA` from the connected notebook kernel.
+
+## What's Included
+
+- `AnalogAgent/skills/rf-power-amplifier/`: RFPA design workflow, GF180 process
+  notes, topology guidance, backend adapter, and helper scripts.
+- `AnalogAgent/rf-pa-spec-form-template.md`: full RFPA spec template.
+- `AnalogAgent/rf-pa-onchip-core-spec-form-template.md`: on-chip-core spec
+  template.
+- `CircuitCollector/`: FastAPI simulation service and CircuitCollector Python
+  package.
+- `CircuitCollector/CircuitCollector/config/gf180mcuD/rfpa/`: RFPA TOML
+  configs.
+- `CircuitCollector/CircuitCollector/circuits/rfpa/`: RFPA netlist templates.
+- `CircuitCollector/CircuitCollector/spec_lib/rfpa/`: RFPA testbench templates.
+- `notebooks/setup_and_run_rfpa_gf180mcuD.ipynb`: setup and smoke-test
+  notebook.
+
+The GF180 PDK is not included. The setup notebook links the container's PDK into:
+
+```text
+/foss/designs/share_RFPA/CircuitCollector/CircuitCollector/PDK/gf180mcuD
+```
+
+## Notebook Notes
+
+The first setup cell prints:
+
+```text
+kernel cwd
+share root
+CircuitCollector repo
+RFPA skill root
+```
+
+The share root should resolve to:
+
+```text
+/foss/designs/share_RFPA
+```
+
+If it does not, set `SHARE_ROOT` manually in the first setup cell:
+
+```python
+SHARE_ROOT = Path("/foss/designs/share_RFPA")
+```
+
+The PDK cell auto-detects common IIC-OSIC-TOOLS locations such as:
+
+```text
+/foss/pdks/ciel/gf180mcu/versions/*/gf180mcuD
+```
+
+If auto-detection fails, set `PDK_SRC` manually in the first setup cell:
+
+```python
+PDK_SRC = Path("/container/path/to/gf180mcuD")
+```
+
+A valid PDK path must contain:
+
+```text
+libs.tech/ngspice/design.ngspice
+libs.tech/ngspice/sm141064.ngspice
+```
+
+Before starting a fresh API, the notebook stops old uvicorn processes whose
+command line contains `CircuitCollector.api.main:app`. This avoids stale
+CircuitCollector servers from previous notebooks.
+
+## Optional Checks
+
+Backend coverage:
+
+```bash
+cd /foss/designs/share_RFPA/AnalogAgent
+python3 skills/rf-power-amplifier/scripts/check_backend_coverage.py \
+  --backend-root /foss/designs/share_RFPA/CircuitCollector/CircuitCollector
+```
+
+Quick RFPA smoke test:
+
+```bash
+cd /foss/designs/share_RFPA/AnalogAgent
+python3 skills/rf-power-amplifier/scripts/smoke_test_backend.py \
+  --backend-root /foss/designs/share_RFPA/CircuitCollector/CircuitCollector \
+  --api-url http://localhost:8001/simulate/ \
+  --quick \
+  --topology two_stage_single_ended
+```
+
+Expected smoke-test behavior: at least `two_stage_single_ended` should run and
+return parsed large-signal metrics such as `pout_w`, `pout_dbm`, `pdc_w`,
+`idc_total`, `drain_efficiency`, `iout_rms`, and `iout_pk_est`.
+
+## Troubleshooting
+
+If the API is not healthy, inspect:
+
+```text
+/foss/designs/share_RFPA/circuitcollector_api.log
+```
+
+To manually stop old API servers in the container:
+
+```bash
+pgrep -af 'CircuitCollector.api.main:app'
+pkill -f 'uvicorn.*CircuitCollector.api.main:app'
+```
+
+To verify the API:
+
+```bash
+curl http://localhost:8001/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
 ```
 
 ## Notes
