@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Local/generated simulation artifacts.
+CircuitCollector/CircuitCollector/output/
+CircuitCollector/CircuitCollector/database/
+CircuitCollector/CircuitCollector/PDK/
+circuitcollector_api.log

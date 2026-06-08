@@ -1,0 +1,116 @@
+
+
+--- New Simulation Started at 2026-06-08 08:37:12 ---
+Simulation ID: single_sim
+Total Simulations: 1
+-------------------------------------------
+
+
+Note: No compatibility mode selected!
+
+
+Circuit: rfpa simulation
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 151
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdd                                        3.3
+vbias                                  0.79137
+rfin_src                                     0
+rfin                                         0
+rfout                                        0
+xpa.drv_d                              1.77743
+xpa.drv_gate                           0.79137
+xpa.out_gate                           0.79137
+xpa.gate                               0.79137
+xpa.drain                              1.74824
+xpa.nmatch                                   0
+xpa.nmatch_cser                              0
+xpa.lshunt_top                               0
+xpa.h2trap_l                                 0
+xpa.h2trap                                   0
+xpa.h2trap_c                                 0
+xpa.h3trap_l                                 0
+xpa.h3trap                                   0
+xpa.h3trap_c                                 0
+vdd_s11                                    3.3
+vbias_s11                              0.79137
+s11_src                                      0
+s11_in                                       0
+s11_out                                      0
+xs11.drv_d                             1.77743
+xs11.drv_gate                          0.79137
+xs11.out_gate                          0.79137
+xs11.gate                              0.79137
+xs11.drain                             1.74824
+xs11.nmatch                                  0
+xs11.nmatch_cser                             0
+xs11.lshunt_top                              0
+xs11.h2trap_l                                0
+xs11.h2trap                                  0
+xs11.h2trap_c                                0
+xs11.h3trap_l                                0
+xs11.h3trap                                  0
+xs11.h3trap_c                                0
+vdd_s22                                    3.3
+vbias_s22                              0.79137
+s22_in                                       0
+s22_src                                      0
+s22_out                                      0
+xs22.drv_d                             1.77743
+xs22.drv_gate                          0.79137
+xs22.out_gate                          0.79137
+xs22.gate                              0.79137
+xs22.drain                             1.74824
+xs22.nmatch                                  0
+xs22.nmatch_cser                             0
+xs22.lshunt_top                              0
+xs22.h2trap_l                                0
+xs22.h2trap                                  0
+xs22.h2trap_c                                0
+xs22.h3trap_l                                0
+xs22.h3trap                                  0
+xs22.h3trap_c                                0
+l.xs22.lh3#branch                            0
+l.xs22.lh2#branch                            0
+l.xs22.lshunt#branch                         0
+l.xs11.lh3#branch                            0
+l.xs11.lh2#branch                            0
+l.xs11.lshunt#branch                         0
+l.xpa.lh3#branch                             0
+l.xpa.lh2#branch                             0
+l.xpa.lshunt#branch                          0
+vout_s22#branch                              0
+vbias_s22#branch                   4.35462e-18
+vdd_s22#branch                         -0.0088
+vin_s11#branch                               0
+vbias_s11#branch                   4.35462e-18
+vdd_s11#branch                         -0.0088
+vin#branch                                   0
+vbias#branch                       4.35462e-18
+vdd#branch                             -0.0088
+
+
+No. of Data Rows : 2031
+vout_avg            =  1.26792e-04 from=  1.60000e-07 to=  2.00000e-07
+vout_max            =  4.34373e-01 at=  1.61508e-07
+vout_min            =  -4.68870e-01 at=  1.63508e-07
+idd_avg             =  -8.80000e-03 from=  1.60000e-07 to=  2.00000e-07
+vout_rms            =  3.16818e-01 from=  1.60000e-07 to=  2.00000e-07
+Note: Simulation executed from .control section 

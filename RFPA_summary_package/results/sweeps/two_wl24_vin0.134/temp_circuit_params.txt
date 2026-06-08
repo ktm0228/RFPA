@@ -1,0 +1,42 @@
+* GF180MCU-D textbook-style two-stage single-ended RF PA seed.
+* Pins: gnda vdda rfin rfout vbias
+* Stage 1 is an ideal-current-biased common-source driver.
+* Stage 2 is a larger common-source output stage with a finite-Q output match.
+* Status: runnable seed, but not layout/passive signoff.
+.subckt two_stage_single_ended gnda vdda rfin rfout vbias
+
+* Driver stage.
+MDRV drv_d drv_gate gnda gnda nfet_03v3.12 l=0.28u w=3.36u m=20
+CIN rfin drv_gate 2e-12
+RBDRV drv_gate vbias 20000.0
+IBDRV vdda drv_d 0.8m
+RDRVLEAK drv_d gnda 1G
+
+* Interstage coupling and damping.
+CINTER drv_d out_gate 2e-12
+RGOUT out_gate gate 10.0
+RBOUT gate vbias 20000.0
+
+* Final output stage.
+MOUT drain gate gnda gnda nfet_03v3.12 l=0.28u w=6.72u m=80
+IBOUT vdda drain 8m
+
+* AC-coupled output match seed, adapted from the single-stage AB template.
+CBLOCK drain nmatch 100p
+RNMATCH nmatch gnda 1G
+RCSER nmatch nmatch_cser 1.73
+CSER nmatch_cser rfout 7.351p
+RLSHUNT rfout lshunt_top 5.77
+LSHUNT lshunt_top gnda 73.511n
+
+* Optional harmonic traps: series-resonant shunts near H2 and H3.
+RLH2 rfout h2trap_l 7.96
+LH2 h2trap_l h2trap 5.0661e-08
+RCH2 h2trap h2trap_c 1.59
+CH2 h2trap_c gnda 2e-12
+RLH3 rfout h3trap_l 10.61
+LH3 h3trap_l h3trap 4.5032e-08
+RCH3 h3trap h3trap_c 2.12
+CH3 h3trap_c gnda 1e-12
+
+.ends two_stage_single_ended

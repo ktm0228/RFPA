@@ -8,8 +8,14 @@ import hashlib
 import sqlite3
 from pathlib import Path
 from typing import Dict, Any, Optional
-import redis
-from redis.lock import Lock
+
+try:
+    import redis
+    from redis.lock import Lock
+except ImportError:  # Cache is optional; simulations can run without Redis.
+    redis = None
+    Lock = Any
+
 from CircuitCollector.utils.path import PROJECT_ROOT
 
 
@@ -43,6 +49,11 @@ class CacheManager:
             lock_timeout: Lock timeout in seconds
             lock_blocking_timeout: Blocking timeout for acquiring lock
         """
+        if redis is None:
+            raise ImportError(
+                "The optional 'redis' package is not installed; cache disabled."
+            )
+
         # Redis connection
         self.redis_client = redis.Redis(
             host=redis_host,

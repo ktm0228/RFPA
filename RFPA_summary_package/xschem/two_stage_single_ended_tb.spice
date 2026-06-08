@@ -1,0 +1,40 @@
+* Netlist-only Xschem/ngspice verification deck for the selected RFPA.
+* Open this from Xschem as a SPICE/include artifact, or run:
+*   ngspice two_stage_single_ended_tb.spice
+*
+* This is not an editable Xschem schematic. It is the generated SPICE circuit
+* packaged for manual verification.
+
+.include ./two_stage_single_ended_subckt.spice
+.include /Users/tkong/Documents/GitHub/RFPA/CircuitCollector/CircuitCollector/PDK/gf180mcuD/libs.tech/ngspice/design.ngspice
+.lib '/Users/tkong/Documents/GitHub/RFPA/CircuitCollector/CircuitCollector/PDK/gf180mcuD/libs.tech/ngspice/sm141064.ngspice' typical
+
+VDD vdd 0 3.3
+VBIAS vbias 0 0.79137
+VIN rfin_src 0 DC 0 AC 0 SIN(0 0.118 250MEG)
+RSRC rfin_src rfin 50
+RLOAD rfout 0 50
+
+XPA 0 vdd rfin rfout vbias two_stage_single_ended
+
+.control
+save all
+set filetype=ascii
+set wr_singlescale
+set wr_vecnames
+option temp=27
+tran 0.1n 200n
+meas tran vout_avg AVG v(rfout) from=160n to=200n
+let vout_ac = v(rfout) - vout_avg
+meas tran vout_rms RMS vout_ac from=160n to=200n
+meas tran vout_max MAX v(rfout) from=160n to=200n
+meas tran vout_min MIN v(rfout) from=160n to=200n
+meas tran idd_avg AVG i(VDD) from=160n to=200n
+let pdc_w = -idd_avg * 3.3
+let pout_w = vout_rms * vout_rms / 50
+let pout_dbm = 10 * log10(pout_w / 1e-3)
+let iout_pk_est = (vout_max - vout_min) / 100
+print pdc_w pout_w pout_dbm iout_pk_est
+.endc
+
+.end

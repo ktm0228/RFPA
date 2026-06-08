@@ -17,6 +17,159 @@ def _looks_like_float(value: str) -> bool:
         return False
 
 
+def _read_numeric_table(file_path: Union[str, Path]) -> Tuple[List[str], np.ndarray]:
+    """Read an ngspice wrdata-style text table into header tokens and floats."""
+    file_path = Path(file_path)
+    if not file_path.exists():
+        return [], np.empty((0, 0))
+
+    header: List[str] = []
+    rows: List[List[float]] = []
+    width: Optional[int] = None
+    for line in file_path.read_text(errors="replace").splitlines():
+        tokens = line.split()
+        if not tokens:
+            continue
+        try:
+            row = [float(token) for token in tokens]
+        except ValueError:
+            if not rows:
+                header = tokens
+            continue
+        if width is None:
+            width = len(row)
+        if len(row) == width:
+            rows.append(row)
+
+    if not rows:
+        return header, np.empty((0, 0))
+    return header, np.asarray(rows, dtype=float)
+
+
+def _db20(value: float) -> Optional[float]:
+    if value is None or not np.isfinite(value) or value <= 0:
+        return None
+    return float(20.0 * np.log10(value))
+
+
+def _finite(value: float) -> Optional[float]:
+    if value is None or not np.isfinite(value):
+        return None
+    return float(value)
+
+
+def _estimate_harmonics(
+    waveform_file: Union[str, Path],
+    f0_hz: Optional[float],
+) -> Dict[str, float]:
+    """Estimate H2/H3 dBc from the settled RF output waveform."""
+    if not f0_hz or f0_hz <= 0:
+        return {}
+
+    header, data = _read_numeric_table(waveform_file)
+    if data.size == 0 or data.shape[1] < 3:
+        return {}
+
+    # With wr_singlescale + wr_vecnames, ngspice writes duplicate time columns.
+    if len(header) >= 3 and header[0] == header[1]:
+        time = data[:, 1]
+        vout = data[:, 2]
+    else:
+        time = data[:, 0]
+        vout = data[:, 1]
+
+    good = np.isfinite(time) & np.isfinite(vout)
+    time = time[good]
+    vout = vout[good]
+    if len(time) < 20:
+        return {}
+
+    order = np.argsort(time)
+    time = time[order]
+    vout = vout[order]
+
+    end_time = float(time[-1])
+    start_time = max(float(time[0]), end_time - 10.0 / f0_hz)
+    mask = time >= start_time
+    if int(mask.sum()) < 20:
+        mask = time >= (float(time[0]) + 0.8 * (end_time - float(time[0])))
+    time = time[mask]
+    vout = vout[mask]
+    if len(time) < 20:
+        return {}
+
+    def harmonic_amplitude(order: int) -> float:
+        omega_t = 2.0 * np.pi * f0_hz * order * time
+        basis = np.column_stack(
+            [np.cos(omega_t), np.sin(omega_t), np.ones_like(time)]
+        )
+        coeff, *_ = np.linalg.lstsq(basis, vout, rcond=None)
+        return float(np.hypot(coeff[0], coeff[1]))
+
+    fundamental = harmonic_amplitude(1)
+    if fundamental <= 0 or not np.isfinite(fundamental):
+        return {}
+
+    h2 = harmonic_amplitude(2)
+    h3 = harmonic_amplitude(3)
+    return {
+        "h2_dbc": _db20(h2 / fundamental),
+        "h3_dbc": _db20(h3 / fundamental),
+    }
+
+
+def _estimate_sparams_at_f0(
+    sparam_file: Union[str, Path],
+    f0_hz: Optional[float],
+) -> Dict[str, float]:
+    """Estimate two-port metrics from the current RFPA small-signal testbench."""
+    if not f0_hz or f0_hz <= 0:
+        return {}
+
+    _, data = _read_numeric_table(sparam_file)
+    if data.size == 0 or data.shape[1] < 11:
+        return {}
+
+    idx = int(np.argmin(np.abs(data[:, 0] - f0_hz)))
+    row = data[idx]
+
+    # Column layout for wrdata frequency v(s11_in) v(s11_out) v(s22_out)
+    # v(s22_in): scale, freq(real), freq(imag), then complex pairs.
+    v_s11_in = complex(row[3], row[4])
+    v_s11_out = complex(row[5], row[6])
+    v_s22_out = complex(row[7], row[8])
+    v_s22_in = complex(row[9], row[10])
+
+    # Approximate conversion for a 1 V Thevenin source and equal port
+    # resistances: V_inc = 0.5 V, so Gamma = 2*V_port - 1.
+    s11 = 2.0 * v_s11_in - 1.0
+    s21 = 2.0 * v_s11_out
+    s22 = 2.0 * v_s22_out - 1.0
+    s12 = 2.0 * v_s22_in
+
+    delta = s11 * s22 - s12 * s21
+    s12s21 = abs(s12 * s21)
+    if s12s21 > 0:
+        stability_k = (
+            1.0 - abs(s11) ** 2 - abs(s22) ** 2 + abs(delta) ** 2
+        ) / (2.0 * s12s21)
+    else:
+        stability_k = None
+
+    mu_den = abs(s22 - delta * np.conj(s11)) + s12s21
+    stability_mu = (1.0 - abs(s11) ** 2) / mu_den if mu_den > 0 else None
+
+    return {
+        "sparam_freq_hz": float(row[0]),
+        "s11_db": _db20(abs(s11)),
+        "s21_db": _db20(abs(s21)),
+        "s12_db": _db20(abs(s12)),
+        "s22_db": _db20(abs(s22)),
+        "stability_k": _finite(stability_k),
+        "stability_mu": _finite(stability_mu),
+    }
+
+
 class SimulationResultParser:
     """Simulation result parser for collecting SPICE simulation data"""
 
@@ -139,9 +292,10 @@ class SimulationResultParser:
     ) -> Dict[str, float]:
         """Collect RFPA scalar measurements from ngspice print files."""
         results = {}
+        large_signal_path = Path(large_signal_file)
         results.update(self.parse_measurement_file(dc_file))
-        results.update(self.parse_measurement_file(large_signal_file))
-        if op_region_file:
+        results.update(self.parse_measurement_file(large_signal_path))
+        if op_region_file and Path(op_region_file).exists():
             results.update(self.parse_measurement_file(op_region_file))
 
         pout_w = results.get("pout_w")
@@ -153,9 +307,24 @@ class SimulationResultParser:
             results.setdefault("gain_db", 10.0 * np.log10(pout_w / pin_w))
             results.setdefault("pae", 100.0 * (pout_w - pin_w) / pdc_w if pdc_w else None)
 
-        # The current RFPA S-parameter template writes waveforms, not scalar
-        # s11/s21/s12/s22 values. Leave those keys absent until a scalar parser
-        # is added.
+        idc_total = results.get("idc_total")
+        iout_rms = results.get("iout_rms")
+        iout_pk_est = results.get("iout_pk_est")
+        if idc_total is not None:
+            results.setdefault("idc_limit_pass", float(abs(idc_total) <= 10e-3))
+        if iout_rms is not None:
+            results.setdefault("iout_rms_limit_pass", float(iout_rms <= 10e-3))
+        if iout_pk_est is not None:
+            results.setdefault("iout_pk_limit_pass", float(iout_pk_est <= 10e-3))
+
+        waveform_file = large_signal_path.with_name(
+            large_signal_path.name.replace("_LARGE_SIGNAL.txt", "_WAVEFORM.txt")
+        )
+        results.update(_estimate_harmonics(waveform_file, results.get("f0_hz")))
+
+        if sparam_file:
+            results.update(_estimate_sparams_at_f0(sparam_file, results.get("f0_hz")))
+
         return results
 
 

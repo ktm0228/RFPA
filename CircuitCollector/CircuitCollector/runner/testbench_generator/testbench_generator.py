@@ -152,6 +152,7 @@ class TestbenchGenerator:
         load_pull = tb.get("load_pull", {})
         power_sweep = tb.get("power_sweep", {})
         modulated = tb.get("modulated", {})
+        rf_limits = tb.get("rf_limits", {})
         data = tb.get("data", {})
 
         r_load = rf.get("R_load", 50.0)
@@ -168,6 +169,10 @@ class TestbenchGenerator:
             "Pout_target": rf.get("Pout_target"),
             "Pout_target_dbm": rf.get("Pout_target_dbm"),
             "Pin_available_dbm": rf.get("Pin_available_dbm"),
+            "Pdc_max": rf_limits.get("Pdc_max", 33e-3),
+            "Max_Idc_total": rf_limits.get("Max_Idc_total", 10e-3),
+            "Iout_rms_max": rf_limits.get("Iout_rms_max", 10e-3),
+            "Iout_pk_max": rf_limits.get("Iout_pk_max", 10e-3),
             "measure_sparams": sparams.get("measure_sparams", False),
             "sparam_freq_start": sparams.get("freq_start", 1e6),
             "sparam_freq_stop": sparams.get("freq_stop", 1e9),

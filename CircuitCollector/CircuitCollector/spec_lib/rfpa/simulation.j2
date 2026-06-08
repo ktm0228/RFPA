@@ -67,12 +67,20 @@ meas tran idd_avg AVG i(VDD) from={{measure_start|default("1u")}} to={{tstop|def
 let vout_ac = v(rfout) - vout_avg
 meas tran vout_rms RMS vout_ac from={{measure_start|default("1u")}} to={{tstop|default("2u")}}
 let pdc_w = -idd_avg * {{supply_voltage}}
-let pout_w = vout_rms * vout_rms / {{R_load}}
+let pin_w = {{rf_input_vpk|default(0.2244)}} * {{rf_input_vpk|default(0.2244)}} / (8 * {{R_source}})
+let f0_hz = {{f0}}
+let pout_w = vout_rms * vout_rms / {{R_load_real}}
 let pout_dbm = 10 * log10(pout_w / 1e-3)
+let gain_db = 10 * log10(pout_w / pin_w)
 let drain_efficiency = 100 * pout_w / pdc_w
-let iout_rms = vout_rms / {{R_load}}
-let iout_pk_est = (vout_max - vout_min) / (2 * {{R_load}})
-print vout_avg vout_rms vout_max vout_min idd_avg pdc_w pout_w pout_dbm drain_efficiency iout_rms iout_pk_est > {{data_LARGE_SIGNAL}}.txt
+let pae = 100 * (pout_w - pin_w) / pdc_w
+let iout_rms = vout_rms / {{R_load_real}}
+let iout_pk_est = (vout_max - vout_min) / (2 * {{R_load_real}})
+let idc_limit_pass = (abs(idd_avg) le {{Max_Idc_total}})
+let iout_rms_limit_pass = (iout_rms le {{Iout_rms_max}})
+let iout_pk_limit_pass = (iout_pk_est le {{Iout_pk_max}})
+let pdc_limit_pass = (pdc_w le {{Pdc_max}})
+print f0_hz pin_w vout_avg vout_rms vout_max vout_min idd_avg pdc_w pout_w pout_dbm gain_db drain_efficiency pae iout_rms iout_pk_est idc_limit_pass iout_rms_limit_pass iout_pk_limit_pass pdc_limit_pass > {{data_LARGE_SIGNAL}}.txt
 {% endif %}
 
 {% if measure_harmonics %}
